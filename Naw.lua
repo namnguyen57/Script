@@ -1,6 +1,6 @@
 -- ==========================================================
 -- SCRIPT: NAW HUB V1 
--- TÁC GIẢ: namnguyen57
+-- TÁC GIẢ: namnguyen57 |
 -- ==========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -50,7 +50,7 @@ AuthorLabel.Parent = Background
 local spinTween = TweenService:Create(Spinner, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
 spinTween:Play()
 
-task.wait(3.5)
+task.wait(2) -- Giảm bớt thời gian chờ cho nhanh gọn
 
 pcall(function()
     TweenService:Create(Background, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
@@ -62,12 +62,11 @@ SplashGui:Destroy()
 
 -- 2. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG
 local AntiAFK_Enabled = false
-local FPS_Boost_Enabled = false
 local Speed_Enabled = false
 local Noclip_Enabled = false
 local Fly_Enabled = false
 
--- Anti-AFK Ngầm
+-- Anti-AFK
 LocalPlayer.Idled:Connect(function()
     if AntiAFK_Enabled then
         pcall(function()
@@ -89,7 +88,7 @@ local function OptimizeGame()
     end)
 end
 
--- Speed Loop An Toàn
+-- Speed Loop
 task.spawn(function()
     while task.wait(0.1) do
         pcall(function()
@@ -104,7 +103,7 @@ task.spawn(function()
     end
 end)
 
--- Noclip Loop An Toàn
+-- Noclip Loop
 RunService.Stepped:Connect(function()
     if Noclip_Enabled and LocalPlayer.Character then
         pcall(function()
@@ -117,7 +116,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Fly Loop An Toàn (Mobile Joystick)
+-- Fly Loop
 local flyBv, flyBg
 RunService.RenderStepped:Connect(function()
     if Fly_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -162,7 +161,7 @@ MainFrame.Position = UDim2.new(0.5, -280, 0.5, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Visible = false
+MainFrame.Visible = true -- Cho hiện mặc định luôn khi test
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -254,7 +253,7 @@ FooterText.TextSize = 12
 FooterText.TextXAlignment = Enum.TextXAlignment.Left
 FooterText.Parent = Footer
 
--- NÚT BẤM NỔI BẬT/TẮT MENU (FLOATING BUTTON)
+-- FLOATING BUTTON (NÚT TRÒN BẬT TẮT)
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0, 10, 0.4, 0)
@@ -266,7 +265,6 @@ ToggleBtn.TextSize = 14
 ToggleBtn.Parent = ScreenGui
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 25)
 
--- Kéo rê nút tròn
 local tDragging, tDragInput, tDragStart, tStartPos
 ToggleBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -293,12 +291,12 @@ ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame
 
 -- CONTAINER CHỨA NỘI DUNG CÁC TAB
 local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -150, 1, -70)
-Container.Position = UDim2.new(0, 150, 0, 45)
+Container.Size = UDim2.new(1, -160, 1, -80)
+Container.Position = UDim2.new(0, 155, 0, 50)
 Container.BackgroundTransparency = 1
 Container.Parent = MainFrame
 
--- HỆ THỐNG QUẢN LÝ TAB
+-- HỆ THỐNG QUẢN LÝ TAB TỰ ĐỘNG CĂN CHỈNH (FIX CỨNG)
 local Tabs = {}
 local TabButtons = {}
 local TabCount = 0
@@ -309,11 +307,17 @@ local function CreateTab(name)
     local TabPage = Instance.new("ScrollingFrame")
     TabPage.Size = UDim2.new(1, 0, 1, 0)
     TabPage.BackgroundTransparency = 1
-    TabPage.CanvasSize = UDim2.new(0, 0, 0, 0)
-    TabPage.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y -- Chống tràn tính năng
-    TabPage.ScrollBarThickness = 2
+    TabPage.CanvasSize = UDim2.new(0, 0, 0, 500) -- Kéo dài để cuộn thoải mái
+    TabPage.ScrollBarThickness = 3
     TabPage.Visible = (TabCount == 1)
     TabPage.Parent = Container
+    
+    -- Dùng UIListLayout để các ô tính năng tự xếp chồng lên nhau gọn gàng
+    local ListLayout = Instance.new("UIListLayout")
+    ListLayout.Padding = UDim.new(0, 10)
+    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ListLayout.Parent = TabPage
+    
     Tabs[name] = TabPage
     
     local TabBtn = Instance.new("TextButton")
@@ -342,11 +346,10 @@ local function CreateTab(name)
     return TabPage
 end
 
--- Hàm tạo Khu Vực (Section)
-local function CreateSection(parent, title, sizeX, sizeY, posX, posY)
+-- Hàm tạo Section (Ô vuông lớn)
+local function CreateSection(parent, title, sizeY)
     local SectionFrame = Instance.new("Frame")
-    SectionFrame.Size = UDim2.new(sizeX, 0, sizeY, 0)
-    SectionFrame.Position = UDim2.new(posX, 0, posY, 0)
+    SectionFrame.Size = UDim2.new(0.96, 0, 0, sizeY)
     SectionFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
     SectionFrame.BorderSizePixel = 0
     SectionFrame.Parent = parent
@@ -366,7 +369,7 @@ local function CreateSection(parent, title, sizeX, sizeY, posX, posY)
     return SectionFrame
 end
 
--- Hàm tạo Nút Gạt Switch
+-- Hàm tạo Nút Gạt Switch (Toggle)
 local function CreateToggle(section, name, yPos, callback)
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0.94, 0, 0, 30)
@@ -419,31 +422,29 @@ local function CreateToggle(section, name, yPos, callback)
 end
 
 -- ==========================================================
--- KHỞI TẠO NỘI DUNG AN TOÀN
+-- ĐƯA CÁC TÍNH NĂNG VÀO CÁC TAB (ĐÃ FIX KHÔNG TRỐNG)
 -- ==========================================================
 
 -- 1. TAB BOOST FPS
 local TabFPS = CreateTab("🚀 Boost FPS")
-local SecFPS = CreateSection(TabFPS, "Performance Boost", 0.94, 110, 0.03, 0.05)
+local SecFPS = CreateSection(TabFPS, "Performance Boost", 110)
 CreateToggle(SecFPS, "Boost FPS (Optimize Graphic)", 35, function(v) if v then OptimizeGame() end end)
 CreateToggle(SecFPS, "Auto Anti-AFK All Game", 70, function(v) AntiAFK_Enabled = v end)
 
 -- 2. TAB MOVEMENT
 local TabMove = CreateTab("⚡ Movement")
-local SecMove = CreateSection(TabMove, "Basic Movement", 0.45, 150, 0.03, 0.05)
+local SecMove = CreateSection(TabMove, "Player Movement", 150)
 CreateToggle(SecMove, "Speed Hack (x60)", 35, function(v) Speed_Enabled = v end)
 CreateToggle(SecMove, "Noclip (Wall)", 70, function(v) Noclip_Enabled = v end)
-
-local SecFly = CreateSection(TabMove, "Flight Options", 0.45, 150, 0.52, 0.05)
-CreateToggle(SecFly, "Fly (Follow Cam)", 35, function(v) Fly_Enabled = v end)
+CreateToggle(SecMove, "Fly (Follow Cam)", 105, function(v) Fly_Enabled = v end)
 
 -- 3. TAB DISCORD
 local TabDiscord = CreateTab("💬 Discord")
-local SecCredits = CreateSection(TabDiscord, "Information", 0.94, 110, 0.03, 0.05)
+local SecCredits = CreateSection(TabDiscord, "Information", 100)
 
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(0.9, 0, 0, 50)
-InfoLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
+InfoLabel.Position = UDim2.new(0.05, 0, 0, 35)
 InfoLabel.BackgroundTransparency = 1
 InfoLabel.Text = "Owner: namnguyen57\nThank you for using Naw Hub V1!"
 InfoLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
