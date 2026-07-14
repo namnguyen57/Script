@@ -1,6 +1,6 @@
 -- ==========================================================
--- SCRIPT: NAW HUB V1 
--- TÁC GIẢ: namnguyen57 |
+-- SCRIPT: NAW HUB V1
+-- TÁC GIẢ: namnguyen57 | tiktok:naweyu
 -- ==========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -11,7 +11,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- 1. TẠO SPLASH SCREEN XOAY VÒNG AN TOÀN
+-- 1. TẠO SPLASH SCREEN XOAY VÒNG
 local SplashGui = Instance.new("ScreenGui")
 SplashGui.Name = "NawSplash"
 SplashGui.ResetOnSpawn = false
@@ -32,16 +32,13 @@ local UIStroke = Instance.new("UIStroke")
 UIStroke.Thickness = 5
 UIStroke.Color = Color3.fromRGB(0, 170, 255)
 UIStroke.Parent = Spinner
-
-local UICornerSpinner = Instance.new("UICorner")
-UICornerSpinner.CornerRadius = UDim.new(1, 0)
-UICornerSpinner.Parent = Spinner
+Instance.new("UICorner", Spinner).CornerRadius = UDim.new(1, 0)
 
 local AuthorLabel = Instance.new("TextLabel")
 AuthorLabel.Size = UDim2.new(1, 0, 0, 100)
 AuthorLabel.Position = UDim2.new(0, 0, 0.5, 60)
 AuthorLabel.BackgroundTransparency = 1
-AuthorLabel.Text = "NAW HUB V1\nLoading by namnguyen57..."
+AuthorLabel.Text = "NAW HUB V2 PRO\nLoading features..."
 AuthorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 AuthorLabel.Font = Enum.Font.SourceSansBold
 AuthorLabel.TextSize = 22
@@ -50,8 +47,7 @@ AuthorLabel.Parent = Background
 local spinTween = TweenService:Create(Spinner, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
 spinTween:Play()
 
-task.wait(2) -- Giảm bớt thời gian chờ cho nhanh gọn
-
+task.wait(1.5)
 pcall(function()
     TweenService:Create(Background, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     TweenService:Create(AuthorLabel, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
@@ -65,6 +61,8 @@ local AntiAFK_Enabled = false
 local Speed_Enabled = false
 local Noclip_Enabled = false
 local Fly_Enabled = false
+local ESP_Enabled = false
+local TeleportTarget = ""
 
 -- Anti-AFK
 LocalPlayer.Idled:Connect(function()
@@ -116,7 +114,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Fly Loop
+-- Fly Loop (Đã sửa để bay mượt và di chuyển theo Camera)
 local flyBv, flyBg
 RunService.RenderStepped:Connect(function()
     if Fly_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -127,18 +125,21 @@ RunService.RenderStepped:Connect(function()
             
             if not flyBv or flyBv.Parent ~= hrp then
                 flyBv = Instance.new("BodyVelocity")
-                flyBv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                flyBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                 flyBv.Parent = hrp
             end
             if not flyBg or flyBg.Parent ~= hrp then
                 flyBg = Instance.new("BodyGyro")
-                flyBg.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                flyBg.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                flyBg.P = 9e4
                 flyBg.Parent = hrp
             end
             
             flyBg.CFrame = camera.CFrame
             if hum and hum.MoveDirection.Magnitude > 0 then
-                flyBv.Velocity = hum.MoveDirection * 60
+                -- Kết hợp hướng di chuyển với hướng nhìn của Camera để có thể bay lên/xuống
+                local moveDir = hum.MoveDirection
+                flyBv.Velocity = Vector3.new(moveDir.X, camera.CFrame.LookVector.Y * moveDir.Magnitude, moveDir.Z) * 60
             else
                 flyBv.Velocity = Vector3.new(0, 0, 0)
             end
@@ -148,6 +149,46 @@ RunService.RenderStepped:Connect(function()
         if flyBg then pcall(function() flyBg:Destroy() end) flyBg = nil end
     end
 end)
+
+-- ESP Loop
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    local char = player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local highlight = char:FindFirstChild("NAW_ESP")
+                        if ESP_Enabled then
+                            if not highlight then
+                                highlight = Instance.new("Highlight")
+                                highlight.Name = "NAW_ESP"
+                                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                highlight.Parent = char
+                            end
+                        else
+                            if highlight then highlight:Destroy() end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Hàm Teleport
+local function TeleportToPlayer(targetName)
+    if targetName == "" then return end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (string.find(string.lower(p.Name), string.lower(targetName)) or string.find(string.lower(p.DisplayName), string.lower(targetName))) then
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
+                break
+            end
+        end
+    end
+end
 
 -- 3. KHỞI TẠO GIAO DIỆN CHÍNH
 local ScreenGui = Instance.new("ScreenGui")
@@ -161,29 +202,20 @@ MainFrame.Position = UDim2.new(0.5, -280, 0.5, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Visible = true -- Cho hiện mặc định luôn khi test
+MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
-
--- Kéo rê menu mượt mà
+-- Kéo rê menu
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
+        dragging = true; dragStart = input.Position; startPos = MainFrame.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
     end
 end)
 MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
@@ -194,149 +226,63 @@ end)
 
 -- LEFT SIDEBAR
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 150, 1, -25)
-Sidebar.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-
-local SidebarCorner = Instance.new("UICorner")
-SidebarCorner.CornerRadius = UDim.new(0, 8)
-SidebarCorner.Parent = Sidebar
+Sidebar.Size, Sidebar.BackgroundColor3 = UDim2.new(0, 150, 1, -25), Color3.fromRGB(10, 10, 12)
+Sidebar.BorderSizePixel, Sidebar.Parent = 0, MainFrame
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
 
 local LogoLabel = Instance.new("TextLabel")
-LogoLabel.Size = UDim2.new(1, 0, 0, 45)
-LogoLabel.BackgroundTransparency = 1
-LogoLabel.Text = " 🔵 Naw Hub V1"
-LogoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-LogoLabel.Font = Enum.Font.SourceSansBold
-LogoLabel.TextSize = 18
-LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogoLabel.Size, LogoLabel.BackgroundTransparency = UDim2.new(1, 0, 0, 45), 1
+LogoLabel.Text, LogoLabel.TextColor3 = " 🔵 Naw Hub V2", Color3.fromRGB(255, 255, 255)
+LogoLabel.Font, LogoLabel.TextSize, LogoLabel.TextXAlignment = Enum.Font.SourceSansBold, 18, Enum.TextXAlignment.Left
 LogoLabel.Parent = Sidebar
 
--- TOPBAR
-local Topbar = Instance.new("Frame")
-Topbar.Size = UDim2.new(1, -150, 0, 45)
-Topbar.Position = UDim2.new(0, 150, 0, 0)
-Topbar.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+-- TOPBAR & FOOTER
+local Topbar = Instance.new("Frame", MainFrame)
+Topbar.Size, Topbar.Position, Topbar.BackgroundColor3 = UDim2.new(1, -150, 0, 45), UDim2.new(0, 150, 0, 0), Color3.fromRGB(14, 14, 18)
 Topbar.BorderSizePixel = 0
-Topbar.Parent = MainFrame
 
-local SearchBar = Instance.new("TextBox")
-SearchBar.Size = UDim2.new(0.9, 0, 0, 28)
-SearchBar.Position = UDim2.new(0.05, 0, 0.2, 0)
-SearchBar.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-SearchBar.Text = ""
-SearchBar.PlaceholderText = "Search features..."
-SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
-SearchBar.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
-SearchBar.Font = Enum.Font.SourceSans
-SearchBar.TextSize = 14
-SearchBar.Parent = Topbar
-Instance.new("UICorner", SearchBar).CornerRadius = UDim.new(0, 6)
-
--- FOOTER
-local Footer = Instance.new("Frame")
-Footer.Size = UDim2.new(1, 0, 0, 25)
-Footer.Position = UDim2.new(0, 0, 1, -25)
-Footer.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+local Footer = Instance.new("Frame", MainFrame)
+Footer.Size, Footer.Position, Footer.BackgroundColor3 = UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 1, -25), Color3.fromRGB(10, 10, 12)
 Footer.BorderSizePixel = 0
-Footer.Parent = MainFrame
 
-local FooterText = Instance.new("TextLabel")
-FooterText.Size = UDim2.new(1, -20, 1, 0)
-FooterText.Position = UDim2.new(0, 10, 0, 0)
-FooterText.BackgroundTransparency = 1
-FooterText.Text = "v1.0.0 | https://github.com/namnguyen57"
-FooterText.TextColor3 = Color3.fromRGB(120, 120, 130)
-FooterText.Font = Enum.Font.SourceSans
-FooterText.TextSize = 12
+local FooterText = Instance.new("TextLabel", Footer)
+FooterText.Size, FooterText.Position, FooterText.BackgroundTransparency = UDim2.new(1, -20, 1, 0), UDim2.new(0, 10, 0, 0), 1
+FooterText.Text, FooterText.TextColor3, FooterText.Font, FooterText.TextSize = "v2.0 PRO | Coded by namnguyen57", Color3.fromRGB(120, 120, 130), Enum.Font.SourceSans, 12
 FooterText.TextXAlignment = Enum.TextXAlignment.Left
-FooterText.Parent = Footer
 
--- FLOATING BUTTON (NÚT TRÒN BẬT TẮT)
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0, 10, 0.4, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-ToggleBtn.Text = "NAW"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 14
-ToggleBtn.Parent = ScreenGui
+-- FLOATING BUTTON
+local ToggleBtn = Instance.new("TextButton", ScreenGui)
+ToggleBtn.Size, ToggleBtn.Position, ToggleBtn.BackgroundColor3 = UDim2.new(0, 50, 0, 50), UDim2.new(0, 10, 0.4, 0), Color3.fromRGB(0, 170, 255)
+ToggleBtn.Text, ToggleBtn.TextColor3, ToggleBtn.Font, ToggleBtn.TextSize = "NAW", Color3.fromRGB(255, 255, 255), Enum.Font.SourceSansBold, 14
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 25)
-
-local tDragging, tDragInput, tDragStart, tStartPos
-ToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        tDragging = true
-        tDragStart = input.Position
-        tStartPos = ToggleBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then tDragging = false end
-        end)
-    end
-end)
-ToggleBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        tDragInput = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == tDragInput and tDragging then
-        local delta = input.Position - tDragStart
-        ToggleBtn.Position = UDim2.new(tStartPos.X.Scale, tStartPos.X.Offset + delta.X, tStartPos.Y.Scale, tStartPos.Y.Offset + delta.Y)
-    end
-end)
 ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
--- CONTAINER CHỨA NỘI DUNG CÁC TAB
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -160, 1, -80)
-Container.Position = UDim2.new(0, 155, 0, 50)
-Container.BackgroundTransparency = 1
-Container.Parent = MainFrame
+-- CONTAINER
+local Container = Instance.new("Frame", MainFrame)
+Container.Size, Container.Position, Container.BackgroundTransparency = UDim2.new(1, -160, 1, -80), UDim2.new(0, 155, 0, 50), 1
 
--- HỆ THỐNG QUẢN LÝ TAB TỰ ĐỘNG CĂN CHỈNH (FIX CỨNG)
-local Tabs = {}
-local TabButtons = {}
-local TabCount = 0
+-- TAB SYSTEM
+local Tabs, TabButtons, TabCount = {}, {}, 0
 
 local function CreateTab(name)
     TabCount = TabCount + 1
+    local TabPage = Instance.new("ScrollingFrame", Container)
+    TabPage.Size, TabPage.BackgroundTransparency, TabPage.CanvasSize = UDim2.new(1, 0, 1, 0), 1, UDim2.new(0, 0, 0, 500)
+    TabPage.ScrollBarThickness, TabPage.Visible = 3, (TabCount == 1)
     
-    local TabPage = Instance.new("ScrollingFrame")
-    TabPage.Size = UDim2.new(1, 0, 1, 0)
-    TabPage.BackgroundTransparency = 1
-    TabPage.CanvasSize = UDim2.new(0, 0, 0, 500) -- Kéo dài để cuộn thoải mái
-    TabPage.ScrollBarThickness = 3
-    TabPage.Visible = (TabCount == 1)
-    TabPage.Parent = Container
-    
-    -- Dùng UIListLayout để các ô tính năng tự xếp chồng lên nhau gọn gàng
-    local ListLayout = Instance.new("UIListLayout")
-    ListLayout.Padding = UDim.new(0, 10)
-    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    ListLayout.Parent = TabPage
-    
+    local ListLayout = Instance.new("UIListLayout", TabPage)
+    ListLayout.Padding, ListLayout.SortOrder = UDim.new(0, 10), Enum.SortOrder.LayoutOrder
     Tabs[name] = TabPage
     
-    local TabBtn = Instance.new("TextButton")
-    TabBtn.Size = UDim2.new(0.9, 0, 0, 35)
-    TabBtn.Position = UDim2.new(0.05, 0, 0, 45 + (TabCount - 1) * 40)
+    local TabBtn = Instance.new("TextButton", Sidebar)
+    TabBtn.Size, TabBtn.Position = UDim2.new(0.9, 0, 0, 35), UDim2.new(0.05, 0, 0, 45 + (TabCount - 1) * 40)
     TabBtn.BackgroundColor3 = (TabCount == 1) and Color3.fromRGB(22, 22, 28) or Color3.fromRGB(10, 10, 12)
-    TabBtn.BorderSizePixel = 0
-    TabBtn.Text = "   " .. name
-    TabBtn.TextColor3 = (TabCount == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 160)
-    TabBtn.Font = Enum.Font.SourceSansBold
-    TabBtn.TextSize = 14
-    TabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    TabBtn.Parent = Sidebar
+    TabBtn.Text, TabBtn.TextColor3 = "   " .. name, (TabCount == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 160)
+    TabBtn.Font, TabBtn.TextSize, TabBtn.TextXAlignment, TabBtn.BorderSizePixel = Enum.Font.SourceSansBold, 14, Enum.TextXAlignment.Left, 0
     Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
     
     TabBtn.MouseButton1Click:Connect(function()
-        for tName, page in pairs(Tabs) do
-            page.Visible = (tName == name)
-        end
+        for tName, page in pairs(Tabs) do page.Visible = (tName == name) end
         for bName, btn in pairs(TabButtons) do
             btn.BackgroundColor3 = (bName == name) and Color3.fromRGB(22, 22, 28) or Color3.fromRGB(10, 10, 12)
             btn.TextColor3 = (bName == name) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 160)
@@ -346,88 +292,79 @@ local function CreateTab(name)
     return TabPage
 end
 
--- Hàm tạo Section (Ô vuông lớn)
 local function CreateSection(parent, title, sizeY)
-    local SectionFrame = Instance.new("Frame")
-    SectionFrame.Size = UDim2.new(0.96, 0, 0, sizeY)
-    SectionFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
-    SectionFrame.BorderSizePixel = 0
-    SectionFrame.Parent = parent
+    local SectionFrame = Instance.new("Frame", parent)
+    SectionFrame.Size, SectionFrame.BackgroundColor3, SectionFrame.BorderSizePixel = UDim2.new(0.96, 0, 0, sizeY), Color3.fromRGB(20, 20, 26), 0
     Instance.new("UICorner", SectionFrame).CornerRadius = UDim.new(0, 6)
     
-    local SectionTitle = Instance.new("TextLabel")
-    SectionTitle.Size = UDim2.new(1, -20, 0, 30)
-    SectionTitle.Position = UDim2.new(0, 10, 0, 0)
-    SectionTitle.BackgroundTransparency = 1
-    SectionTitle.Text = title
-    SectionTitle.TextColor3 = Color3.fromRGB(0, 170, 255)
-    SectionTitle.Font = Enum.Font.SourceSansBold
-    SectionTitle.TextSize = 14
+    local SectionTitle = Instance.new("TextLabel", SectionFrame)
+    SectionTitle.Size, SectionTitle.Position, SectionTitle.BackgroundTransparency = UDim2.new(1, -20, 0, 30), UDim2.new(0, 10, 0, 0), 1
+    SectionTitle.Text, SectionTitle.TextColor3, SectionTitle.Font, SectionTitle.TextSize = title, Color3.fromRGB(0, 170, 255), Enum.Font.SourceSansBold, 14
     SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-    SectionTitle.Parent = SectionFrame
-    
     return SectionFrame
 end
 
--- Hàm tạo Nút Gạt Switch (Toggle)
+-- HÀM TOGGLE MỚI (NÚT HÌNH VUÔNG)
 local function CreateToggle(section, name, yPos, callback)
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0.94, 0, 0, 30)
-    Frame.Position = UDim2.new(0.03, 0, 0, yPos)
-    Frame.BackgroundTransparency = 1
-    Frame.Parent = section
+    local Frame = Instance.new("Frame", section)
+    Frame.Size, Frame.Position, Frame.BackgroundTransparency = UDim2.new(0.94, 0, 0, 30), UDim2.new(0.03, 0, 0, yPos), 1
     
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0.7, 0, 1, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = name
-    Label.TextColor3 = Color3.fromRGB(210, 210, 215)
-    Label.Font = Enum.Font.SourceSans
-    Label.TextSize = 14
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Parent = Frame
+    local Label = Instance.new("TextLabel", Frame)
+    Label.Size, Label.BackgroundTransparency, Label.Text = UDim2.new(0.7, 0, 1, 0), 1, name
+    Label.TextColor3, Label.Font, Label.TextSize, Label.TextXAlignment = Color3.fromRGB(210, 210, 215), Enum.Font.SourceSans, 14, Enum.TextXAlignment.Left
 
-    local ToggleBg = Instance.new("Frame")
-    ToggleBg.Size = UDim2.new(0, 36, 0, 18)
-    ToggleBg.Position = UDim2.new(1, -36, 0.2, 0)
-    ToggleBg.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-    ToggleBg.Parent = Frame
-    Instance.new("UICorner", ToggleBg).CornerRadius = UDim.new(0, 9)
+    local ToggleBg = Instance.new("Frame", Frame)
+    ToggleBg.Size, ToggleBg.Position, ToggleBg.BackgroundColor3 = UDim2.new(0, 20, 0, 20), UDim2.new(1, -25, 0.5, -10), Color3.fromRGB(45, 45, 55)
+    Instance.new("UICorner", ToggleBg).CornerRadius = UDim.new(0, 4) -- Hình vuông hơi bo góc nhẹ cho đẹp
     
-    local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 14, 0, 14)
-    Circle.Position = UDim2.new(0, 2, 0, 2)
-    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Circle.Parent = ToggleBg
-    Instance.new("UICorner", Circle).CornerRadius = UDim.new(0, 7)
+    local CheckMark = Instance.new("Frame", ToggleBg)
+    CheckMark.Size, CheckMark.Position, CheckMark.BackgroundColor3 = UDim2.new(0, 12, 0, 12), UDim2.new(0.5, -6, 0.5, -6), Color3.fromRGB(0, 170, 255)
+    CheckMark.BackgroundTransparency = 1 -- Ẩn khi chưa bật
+    Instance.new("UICorner", CheckMark).CornerRadius = UDim.new(0, 2)
     
     local active = false
-    local Click = Instance.new("TextButton")
-    Click.Size = UDim2.new(1, 0, 1, 0)
-    Click.BackgroundTransparency = 1
-    Click.Text = ""
-    Click.Parent = ToggleBg
+    local Click = Instance.new("TextButton", ToggleBg)
+    Click.Size, Click.BackgroundTransparency, Click.Text = UDim2.new(1, 0, 1, 0), 1, ""
 
     Click.MouseButton1Click:Connect(function()
         active = not active
         callback(active)
-        pcall(function()
-            TweenService:Create(ToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = active and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(45, 45, 55)}):Play()
-            TweenService:Create(Circle, TweenInfo.new(0.2), {
-                Position = active and UDim2.new(1, -16, 0, 2) or UDim2.new(0, 2, 0, 2),
-                BackgroundColor3 = active and Color3.fromRGB(14, 14, 18) or Color3.fromRGB(255, 255, 255)
-            }):Play()
-        end)
+        TweenService:Create(CheckMark, TweenInfo.new(0.2), {BackgroundTransparency = active and 0 or 1}):Play()
     end)
 end
 
+-- HÀM TEXTBOX (NHẬP TÊN NGƯỜI CHƠI)
+local function CreateTextBox(section, placeholder, yPos, callback)
+    local Frame = Instance.new("Frame", section)
+    Frame.Size, Frame.Position, Frame.BackgroundColor3 = UDim2.new(0.94, 0, 0, 30), UDim2.new(0.03, 0, 0, yPos), Color3.fromRGB(30, 30, 38)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
+
+    local Box = Instance.new("TextBox", Frame)
+    Box.Size, Box.Position, Box.BackgroundTransparency = UDim2.new(1, -10, 1, 0), UDim2.new(0, 5, 0, 0), 1
+    Box.PlaceholderText, Box.Text, Box.TextColor3 = placeholder, "", Color3.fromRGB(255, 255, 255)
+    Box.Font, Box.TextSize, Box.TextXAlignment = Enum.Font.SourceSans, 14, Enum.TextXAlignment.Left
+    Box.FocusLost:Connect(function() callback(Box.Text) end)
+end
+
+-- HÀM BUTTON (NÚT BẤM THƯỜNG)
+local function CreateButton(section, name, yPos, callback)
+    local Frame = Instance.new("Frame", section)
+    Frame.Size, Frame.Position, Frame.BackgroundColor3 = UDim2.new(0.94, 0, 0, 30), UDim2.new(0.03, 0, 0, yPos), Color3.fromRGB(0, 110, 200)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
+
+    local Btn = Instance.new("TextButton", Frame)
+    Btn.Size, Btn.BackgroundTransparency, Btn.Text = UDim2.new(1, 0, 1, 0), 1, name
+    Btn.TextColor3, Btn.Font, Btn.TextSize = Color3.fromRGB(255, 255, 255), Enum.Font.SourceSansBold, 14
+    Btn.MouseButton1Click:Connect(callback)
+end
+
 -- ==========================================================
--- ĐƯA CÁC TÍNH NĂNG VÀO CÁC TAB (ĐÃ FIX KHÔNG TRỐNG)
+-- CÀI ĐẶT CÁC TAB
 -- ==========================================================
 
 -- 1. TAB BOOST FPS
 local TabFPS = CreateTab("🚀 Boost FPS")
-local SecFPS = CreateSection(TabFPS, "Performance Boost", 110)
+local SecFPS = CreateSection(TabFPS, "Performance", 110)
 CreateToggle(SecFPS, "Boost FPS (Optimize Graphic)", 35, function(v) if v then OptimizeGame() end end)
 CreateToggle(SecFPS, "Auto Anti-AFK All Game", 70, function(v) AntiAFK_Enabled = v end)
 
@@ -436,19 +373,22 @@ local TabMove = CreateTab("⚡ Movement")
 local SecMove = CreateSection(TabMove, "Player Movement", 150)
 CreateToggle(SecMove, "Speed Hack (x60)", 35, function(v) Speed_Enabled = v end)
 CreateToggle(SecMove, "Noclip (Wall)", 70, function(v) Noclip_Enabled = v end)
-CreateToggle(SecMove, "Fly (Follow Cam)", 105, function(v) Fly_Enabled = v end)
+CreateToggle(SecMove, "Fly (Move & Look to fly)", 105, function(v) Fly_Enabled = v end)
 
--- 3. TAB DISCORD
-local TabDiscord = CreateTab("💬 Discord")
-local SecCredits = CreateSection(TabDiscord, "Information", 100)
+-- 3. TAB VISUALS & TELEPORT (MỚI)
+local TabExtra = CreateTab("👁️ Visuals & TP")
+local SecVis = CreateSection(TabExtra, "ESP Settings", 70)
+CreateToggle(SecVis, "ESP Players (Xuyên Tường)", 35, function(v) ESP_Enabled = v end)
 
-local InfoLabel = Instance.new("TextLabel")
-InfoLabel.Size = UDim2.new(0.9, 0, 0, 50)
-InfoLabel.Position = UDim2.new(0.05, 0, 0, 35)
-InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "Owner: namnguyen57\nThank you for using Naw Hub V1!"
-InfoLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
-InfoLabel.Font = Enum.Font.SourceSans
-InfoLabel.TextSize = 14
-InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
-InfoLabel.Parent = SecCredits
+local SecTP = CreateSection(TabExtra, "Teleport", 120)
+CreateTextBox(SecTP, "Nhập một phần tên người chơi...", 35, function(txt) TeleportTarget = txt end)
+CreateButton(SecTP, "Teleport Đến Người Chơi", 75, function() TeleportToPlayer(TeleportTarget) end)
+
+-- 4. TAB DISCORD
+local TabDiscord = CreateTab("💬 Information")
+local SecCredits = CreateSection(TabDiscord, "Credits", 70)
+local InfoLabel = Instance.new("TextLabel", SecCredits)
+InfoLabel.Size, InfoLabel.Position, InfoLabel.BackgroundTransparency = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 35), 1
+InfoLabel.Text, InfoLabel.TextColor3 = "Owner: namnguyen57 - Update V2 PRO", Color3.fromRGB(180, 180, 190)
+InfoLabel.Font, InfoLabel.TextSize, InfoLabel.TextXAlignment = Enum.Font.SourceSans, 14, Enum.TextXAlignment.Left
+
