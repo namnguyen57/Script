@@ -1,6 +1,6 @@
 -- ==========================================================
 -- SCRIPT: NAW HUB V1
--- TÁC GIẢ: namnguyen57 | 
+-- TÁC GIẢ: namnguyen57 |
 -- ==========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -9,8 +9,6 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -29,41 +27,34 @@ local function ChangeLanguage(lang)
     CurrentLang = lang
     for _, data in pairs(LocalizedTexts) do
         if data.Instance and data.Instance.Parent then
-            pcall(function()
-                data.Instance[data.Property] = data[lang]
-            end)
+            pcall(function() data.Instance[data.Property] = data[lang] end)
         end
     end
 end
 
--- 2. NOTIFICATION INTRO NHỎ GỌN (KHÔNG CHE TẦM NHÌN)
+-- 2. NOTIFICATION INTRO NHỎ GỌN
 local SplashGui = Instance.new("ScreenGui", CoreGui)
 SplashGui.Name = "NawNotification"
 
 local ToastFrame = Instance.new("Frame", SplashGui)
-ToastFrame.Size = UDim2.new(0, 240, 0, 50)
-ToastFrame.Position = UDim2.new(0.5, -120, 0, -60) -- Xuất phát ẩn phía trên màn hình
+ToastFrame.Size, ToastFrame.Position = UDim2.new(0, 240, 0, 50), UDim2.new(0.5, -120, 0, -60)
 ToastFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Instance.new("UICorner", ToastFrame).CornerRadius = UDim.new(0, 6)
 local ToastStroke = Instance.new("UIStroke", ToastFrame)
 ToastStroke.Thickness, ToastStroke.Color = 1.5, Color3.fromRGB(0, 162, 255)
 
 local ToastLabel = Instance.new("TextLabel", ToastFrame)
-ToastLabel.Size = UDim2.new(1, 0, 1, 0)
-ToastLabel.BackgroundTransparency = 1
-ToastLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToastLabel.Font = Enum.Font.GothamBold
-ToastLabel.TextSize = 13
+ToastLabel.Size, ToastLabel.BackgroundTransparency = UDim2.new(1, 0, 1, 0), 1
+ToastLabel.TextColor3, ToastLabel.Font, ToastLabel.TextSize = Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold, 13
 RegisterLocale(ToastLabel, "Text", "⚡ NAW HUB đã sẵn sàng!", "⚡ NAW HUB is ready!")
 
--- Hiệu ứng trượt thông báo tinh tế
 TweenService:Create(ToastFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -120, 0, 25)}):Play()
 task.wait(1.8)
 TweenService:Create(ToastFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -120, 0, -60)}):Play()
 task.wait(0.3)
 SplashGui:Destroy()
 
--- 3. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG CHUYÊN SÂU
+-- 3. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG
 local AntiAFK_Enabled = false
 local Speed_Enabled = false
 local Noclip_Enabled = false
@@ -73,14 +64,9 @@ local Invis_Enabled = false
 local InfJump_Enabled = false
 local ClickTP_Enabled = false
 local Fullbright_Enabled = false
-
--- Biến trạng thái Trade nâng cao
-local FreezeTrade_Enabled = false
-local ForceAccept_Enabled = false
+local GodMode_Enabled = false
 
 local OriginalTransparencies = {}
-local OriginalAmbient = Lighting.Ambient
-local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
 local ESP_Folder = Instance.new("Folder", CoreGui)
 ESP_Folder.Name = "Naw_ESP_Storage"
 
@@ -110,6 +96,7 @@ local function ToggleInvisibility(state)
     end
 end
 
+-- Vòng lặp Tàng hình (giữ trạng thái khi respawn/cập nhật)
 task.spawn(function()
     while task.wait(0.3) do
         if Invis_Enabled and LocalPlayer.Character then
@@ -126,6 +113,16 @@ task.spawn(function()
     end
 end)
 
+-- Bất tử (God Mode - Client Side)
+RunService.Stepped:Connect(function()
+    if GodMode_Enabled and LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end
+end)
+
 -- Nhảy vô hạn
 UserInputService.JumpRequest:Connect(function()
     if InfJump_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
@@ -133,11 +130,13 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Click dịch chuyển (Ctrl + Click trái)
+-- Click dịch chuyển (Fix lỗi click vào khoảng không)
 Mouse.Button1Down:Connect(function()
     if ClickTP_Enabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.p) + Vector3.new(0, 3, 0)
+            if Mouse.Target then -- Đảm bảo chuột đang trỏ vào một vật thể thực
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 3, 0))
+            end
         end
     end
 end)
@@ -156,7 +155,7 @@ LocalPlayer.Idled:Connect(function()
     if AntiAFK_Enabled then pcall(function() game:GetService("VirtualUser"):CaptureController() game:GetService("VirtualUser"):ClickButton2(Vector2.new(0, 0)) end) end
 end)
 
--- Vòng lặp Tốc độ di chuyển
+-- Vòng lặp Tốc độ
 task.spawn(function()
     while task.wait(0.1) do
         if Speed_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -178,7 +177,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Chế độ bay nâng cao từ bản V3 gốc
+-- Chế độ bay
 local flyBv, flyBg
 RunService.RenderStepped:Connect(function()
     if Fly_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -201,7 +200,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ESP Định vị mục tiêu
+-- ESP Định vị
 task.spawn(function()
     while task.wait(0.5) do
         if ESP_Enabled then
@@ -222,44 +221,7 @@ task.spawn(function()
     end
 end)
 
--- LOGIC HỆ THỐNG TRADE (KHÓA ĐÓNG BĂNG & ÉP ĐỒNG Ý)
--- Quét các sự kiện RemoteEvent/RemoteFunction trao đổi phổ biến trong cấu trúc game Roblox
-local function GetTradeRemote()
-    for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-            local name = string.lower(v.Name)
-            if string.find(name, "trade") or string.find(name, "deal") or string.find(name, "accept") then
-                return v
-            end
-        end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while task.wait(0.1) do
-        if FreezeTrade_Enabled or ForceAccept_Enabled then
-            pcall(function()
-                local remote = GetTradeRemote()
-                if remote then
-                    if FreezeTrade_Enabled then
-                        -- Gửi gói tin giả lập liên tục chặn cập nhật trạng thái hủy bỏ hoặc thay đổi item
-                        remote:FireServer("UpdateStatus", "Lock")
-                        remote:FireServer("SetReady", true)
-                    end
-                    if ForceAccept_Enabled then
-                        -- Kích hoạt ép thực thi lệnh xác nhận giao dịch từ client
-                        remote:FireServer("Accept")
-                        remote:FireServer("ConfirmTrade")
-                        remote:FireServer("Complete")
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Tiện ích hệ thống máy chủ
+-- Tiện ích tối ưu
 local function OptimizeGame()
     pcall(function()
         Lighting.FogEnd = 9e9
@@ -274,12 +236,11 @@ local function OptimizeGame()
     end)
 end
 
--- 4. THIẾT KẾ ĐỒ HỌA CHÍNH (V3 GLOSS STYLING)
+-- 4. THIẾT KẾ ĐỒ HỌA CHÍNH
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "NawHubMainUI"
 ScreenGui.ResetOnSpawn = false
 
--- NÚT FLOATING BUTTON KHỞI ĐỘNG
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
 ToggleBtn.Size, ToggleBtn.Position = UDim2.new(0, 46, 0, 46), UDim2.new(0, 20, 0.5, -23)
 ToggleBtn.BackgroundColor3, ToggleBtn.Text = Color3.fromRGB(15, 15, 20), "N"
@@ -288,7 +249,6 @@ Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
 local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
 ToggleStroke.Thickness, ToggleStroke.Color = 2, Color3.fromRGB(0, 162, 255)
 
--- BẢNG ĐIỀU KHIỂN TRUNG TÂM
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size, MainFrame.Position = UDim2.new(0, 580, 0, 360), UDim2.new(0.5, -290, 0.5, -180)
 MainFrame.BackgroundColor3, MainFrame.Visible = Color3.fromRGB(15, 15, 20), true
@@ -296,7 +256,6 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Thickness, MainStroke.Color = 1, Color3.fromRGB(40, 40, 50)
 
--- Logic kéo thả mượt mà không xung đột
 local dragging, dragInput, dragStart, startPos
 local function addDrag(frame, target)
     frame.InputBegan:Connect(function(input)
@@ -320,7 +279,6 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
--- THANH SIDEBAR TRÁI SANG TRỌNG
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Size, Sidebar.BackgroundColor3, Sidebar.BorderSizePixel = UDim2.new(0, 160, 1, 0), Color3.fromRGB(10, 10, 14), 0
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
@@ -337,7 +295,6 @@ IconLabel.TextColor3, IconLabel.Font, IconLabel.TextSize = Color3.fromRGB(255, 2
 local Container = Instance.new("Frame", MainFrame)
 Container.Size, Container.Position, Container.BackgroundTransparency = UDim2.new(1, -175, 1, -20), UDim2.new(0, 170, 0, 10), 1
 
--- BỘ ĐIỀU HƯỚNG TAB
 local Tabs, TabButtons, TabCount = {}, {}, 0
 
 local function CreateTab(vnName, enName, icon)
@@ -388,7 +345,6 @@ local function CreateSection(parent, vnTitle, enTitle, sizeY)
     return SectionFrame
 end
 
--- PHƯƠNG THỨC TOGGLE NÚT GẠT CÔNG TẮC ĐẸP MẮT (STYLE IOS)
 local function CreateToggle(section, vnName, enName, yPos, callback)
     local Frame = Instance.new("Frame", section)
     Frame.Size, Frame.Position, Frame.BackgroundTransparency = UDim2.new(0.94, 0, 0, 34), UDim2.new(0.03, 0, 0, yPos), 1
@@ -418,7 +374,6 @@ local function CreateToggle(section, vnName, enName, yPos, callback)
     end)
 end
 
--- NÚT BẤM VÀ CÁC THÀNH PHẦN KHÁC KIỂU DÁNG CAO CẤP
 local function CreateButton(section, vnName, enName, yPos, callback)
     local Frame = Instance.new("Frame", section)
     Frame.Size, Frame.Position = UDim2.new(0.94, 0, 0, 32), UDim2.new(0.03, 0, 0, yPos)
@@ -441,7 +396,7 @@ local function CreateButton(section, vnName, enName, yPos, callback)
 end
 
 -- ==========================================================
--- SẮP XẾP KHÔNG GIAN CÁC CHỨC NĂNG VÀO MENU CHÍNH
+-- SẮP XẾP LẠI TÍNH NĂNG VÀO MENU CHÍNH
 -- ==========================================================
 
 -- TAB 1: DI CHUYỂN
@@ -454,17 +409,16 @@ CreateToggle(SecMove, "Nhảy vô hạn (Infinite Jump)", "Infinite Jump Request
 CreateToggle(SecMove, "Dịch chuyển bằng chuột (Ctrl + Click)", "Click Teleport (Ctrl + Click)", 175, function(v) ClickTP_Enabled = v end)
 CreateToggle(SecMove, "Tàng hình nhân vật (Invisibility)", "Invisibility Exploit", 210, function(v) ToggleInvisibility(v) end)
 
--- TAB 2: HIỂN THỊ
+-- TAB 2: CHIẾN ĐẤU & BẢO VỆ (Thay thế Trade)
+local TabCombat = CreateTab("Chiến Đấu", "Combat", "⚔️")
+local SecCombat = CreateSection(TabCombat, "Phòng Thủ & Sinh Tồn", "Defense & Survival", 80)
+CreateToggle(SecCombat, "Bất tử (God Mode - Client Side)", "God Mode (Client Sided)", 35, function(v) GodMode_Enabled = v end)
+
+-- TAB 3: HIỂN THỊ
 local TabVis = CreateTab("Hiển Thị", "Visuals", "👁️")
 local SecESP = CreateSection(TabVis, "Định Vị & Bản Đồ", "ESP & Map Rendering", 115)
 CreateToggle(SecESP, "Bật định vị người chơi (Player ESP)", "Player Highlight ESP", 35, function(v) ESP_Enabled = v end)
 CreateToggle(SecESP, "Bật sáng toàn bộ bản đồ (Fullbright)", "Fullbright Lighting", 75, function(v) Fullbright_Enabled = v end)
-
--- TAB 3: GIAO DỊCH (TRADE)
-local TabTrade = CreateTab("Giao Dịch", "Trading", "🔄")
-local SecTrade = CreateSection(TabTrade, "Tính Năng Giao Dịch", "Trade Exploits", 115)
-CreateToggle(SecTrade, "Đóng băng tiến trình Trade", "Freeze Current Trade", 35, function(v) FreezeTrade_Enabled = v end)
-CreateToggle(SecTrade, "Ép đối phương chấp nhận Trade", "Force Accept Opponent Trade", 75, function(v) ForceAccept_Enabled = v end)
 
 -- TAB 4: HỆ THỐNG CÀI ĐẶT
 local TabMisc = CreateTab("Hệ Thống", "System", "⚙️")
