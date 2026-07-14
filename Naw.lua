@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT: NAW HUB V1 
+-- SCRIPT: NAW HUB V1
 -- TÁC GIẢ: namnguyen57 | 
 -- ==========================================================
 
@@ -16,33 +16,54 @@ local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local CoreGui = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. NOTIFICATION INTRO GỌN NHẸ (KHÔNG CHE TẦM NHÌN)
+-- 1. HỆ THỐNG NGÔN NGỮ (LOCALIZATION SYSTEM)
+local CurrentLang = "VN"
+local LocalizedTexts = {}
+
+local function RegisterLocale(instance, property, vnText, enText)
+    table.insert(LocalizedTexts, {Instance = instance, Property = property, VN = vnText, EN = enText})
+    instance[property] = (CurrentLang == "VN") and vnText or enText
+end
+
+local function ChangeLanguage(lang)
+    CurrentLang = lang
+    for _, data in pairs(LocalizedTexts) do
+        if data.Instance and data.Instance.Parent then
+            pcall(function()
+                data.Instance[data.Property] = data[lang]
+            end)
+        end
+    end
+end
+
+-- 2. NOTIFICATION INTRO NHỎ GỌN (KHÔNG CHE TẦM NHÌN)
 local SplashGui = Instance.new("ScreenGui", CoreGui)
+SplashGui.Name = "NawNotification"
+
 local ToastFrame = Instance.new("Frame", SplashGui)
-ToastFrame.Size = UDim2.new(0, 220, 0, 45)
-ToastFrame.Position = UDim2.new(0.5, -110, -0.1, 0) -- Xuất phát từ ngoài màn hình phía trên
-ToastFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+ToastFrame.Size = UDim2.new(0, 240, 0, 50)
+ToastFrame.Position = UDim2.new(0.5, -120, 0, -60) -- Xuất phát ẩn phía trên màn hình
+ToastFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Instance.new("UICorner", ToastFrame).CornerRadius = UDim.new(0, 6)
 local ToastStroke = Instance.new("UIStroke", ToastFrame)
-ToastStroke.Color = Color3.fromRGB(0, 170, 255)
-ToastStroke.Thickness = 1.5
+ToastStroke.Thickness, ToastStroke.Color = 1.5, Color3.fromRGB(0, 162, 255)
 
-local IntroLabel = Instance.new("TextLabel", ToastFrame)
-IntroLabel.Size = UDim2.new(1, 0, 1, 0)
-IntroLabel.BackgroundTransparency = 1
-IntroLabel.Text = "NAW HUB V1 Loaded!"
-IntroLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-IntroLabel.Font = Enum.Font.GothamBold
-IntroLabel.TextSize = 14
+local ToastLabel = Instance.new("TextLabel", ToastFrame)
+ToastLabel.Size = UDim2.new(1, 0, 1, 0)
+ToastLabel.BackgroundTransparency = 1
+ToastLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToastLabel.Font = Enum.Font.GothamBold
+ToastLabel.TextSize = 13
+RegisterLocale(ToastLabel, "Text", "⚡ NAW HUB đã sẵn sàng!", "⚡ NAW HUB is ready!")
 
--- Hiệu ứng trượt thông báo xuống và ẩn đi
-TweenService:Create(ToastFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -110, 0.05, 0)}):Play()
-task.wait(1.5)
-TweenService:Create(ToastFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -110, -0.1, 0)}):Play()
+-- Hiệu ứng trượt thông báo tinh tế
+TweenService:Create(ToastFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -120, 0, 25)}):Play()
+task.wait(1.8)
+TweenService:Create(ToastFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -120, 0, -60)}):Play()
 task.wait(0.3)
 SplashGui:Destroy()
 
--- 2. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG TỰ NGHĨA
+-- 3. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG CHUYÊN SÂU
 local AntiAFK_Enabled = false
 local Speed_Enabled = false
 local Noclip_Enabled = false
@@ -52,25 +73,25 @@ local Invis_Enabled = false
 local InfJump_Enabled = false
 local ClickTP_Enabled = false
 local Fullbright_Enabled = false
-local TeleportTarget = ""
-local FlySpeed = 50
+
+-- Biến trạng thái Trade nâng cao
+local FreezeTrade_Enabled = false
+local ForceAccept_Enabled = false
 
 local OriginalTransparencies = {}
 local OriginalAmbient = Lighting.Ambient
 local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
+local ESP_Folder = Instance.new("Folder", CoreGui)
+ESP_Folder.Name = "Naw_ESP_Storage"
 
--- Chức năng Tàng hình
+-- Logic Tàng hình
 local function ToggleInvisibility(state)
     Invis_Enabled = state
     local char = LocalPlayer.Character
     if not char then return end
-    
     if Invis_Enabled then
         for _, v in pairs(char:GetDescendants()) do
-            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-                OriginalTransparencies[v] = v.Transparency
-                v.Transparency = 1
-            elseif v:IsA("Decal") then
+            if (v:IsA("BasePart") and v.Name ~= "HumanoidRootPart") or v:IsA("Decal") then
                 OriginalTransparencies[v] = v.Transparency
                 v.Transparency = 1
             elseif v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
@@ -81,11 +102,8 @@ local function ToggleInvisibility(state)
     else
         for v, orig in pairs(OriginalTransparencies) do
             pcall(function()
-                if v:IsA("BasePart") or v:IsA("Decal") then
-                    v.Transparency = orig
-                elseif v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
-                    v.Enabled = orig
-                end
+                if v:IsA("BasePart") or v:IsA("Decal") then v.Transparency = orig
+                elseif v:IsA("BillboardGui") or v:IsA("SurfaceGui") then v.Enabled = orig end
             end)
         end
         table.clear(OriginalTransparencies)
@@ -108,14 +126,14 @@ task.spawn(function()
     end
 end)
 
--- Nhảy vô hạn (Infinite Jump)
+-- Nhảy vô hạn
 UserInputService.JumpRequest:Connect(function()
     if InfJump_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
     end
 end)
 
--- Click dịch chuyển (Ctrl + Click chuột trái)
+-- Click dịch chuyển (Ctrl + Click trái)
 Mouse.Button1Down:Connect(function()
     if ClickTP_Enabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -124,78 +142,32 @@ Mouse.Button1Down:Connect(function()
     end
 end)
 
--- Sáng bản đồ (Fullbright)
+-- Sáng bản đồ
 task.spawn(function()
     while task.wait(0.5) do
         if Fullbright_Enabled then
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-            Lighting.GlobalShadows = false
+            Lighting.Ambient, Lighting.OutdoorAmbient, Lighting.GlobalShadows = Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 255, 255), false
         end
     end
 end)
-
-local function ToggleFullbright(state)
-    Fullbright_Enabled = state
-    if not state then
-        Lighting.Ambient = OriginalAmbient
-        Lighting.OutdoorAmbient = OriginalOutdoorAmbient
-        Lighting.GlobalShadows = true
-    end
-end
 
 -- Anti-AFK
 LocalPlayer.Idled:Connect(function()
     if AntiAFK_Enabled then pcall(function() game:GetService("VirtualUser"):CaptureController() game:GetService("VirtualUser"):ClickButton2(Vector2.new(0, 0)) end) end
 end)
 
--- Boost FPS
-local function OptimizeGame()
-    pcall(function()
-        Lighting.FogEnd = 9e9
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        for _, v in pairs(workspace:GetDescendants()) do
-            if v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
-                v.Material = Enum.Material.SmoothPlastic
-                v.Reflectance = 0
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Sparkles") then
-                v.Enabled = false
-            end
-        end
-    end)
-end
-
--- Server Utilities
-local function RejoinServer()
-    pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
-end
-
-local function ServerHop()
-    pcall(function()
-        local serverList = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-        for _, server in pairs(serverList.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-                break
-            end
-        end
-    end)
-end
-
--- Speed Loop
+-- Vòng lặp Tốc độ di chuyển
 task.spawn(function()
     while task.wait(0.1) do
-        pcall(function()
-            if Speed_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid.WalkSpeed = 60
-            elseif not Speed_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                if LocalPlayer.Character.Humanoid.WalkSpeed == 60 then LocalPlayer.Character.Humanoid.WalkSpeed = 16 end
-            end
-        end)
+        if Speed_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = 60
+        elseif not Speed_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            if LocalPlayer.Character.Humanoid.WalkSpeed == 60 then LocalPlayer.Character.Humanoid.WalkSpeed = 16 end
+        end
     end
 end)
 
--- Noclip Loop
+-- Xuyên tường
 RunService.Stepped:Connect(function()
     if Noclip_Enabled and LocalPlayer.Character then
         pcall(function()
@@ -206,7 +178,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Fly Loop
+-- Chế độ bay nâng cao từ bản V3 gốc
 local flyBv, flyBg
 RunService.RenderStepped:Connect(function()
     if Fly_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -214,94 +186,117 @@ RunService.RenderStepped:Connect(function()
             local hrp = LocalPlayer.Character.HumanoidRootPart
             local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
             local cam = workspace.CurrentCamera
-            
-            hum.PlatformStand = true
             if not flyBv or flyBv.Parent ~= hrp then flyBv = Instance.new("BodyVelocity", hrp) flyBv.MaxForce = Vector3.new(9e9, 9e9, 9e9) end
             if not flyBg or flyBg.Parent ~= hrp then flyBg = Instance.new("BodyGyro", hrp) flyBg.MaxForce = Vector3.new(9e9, 9e9, 9e9) flyBg.P = 9e4 end
-            
             flyBg.CFrame = cam.CFrame
-            local moveDir = hum.MoveDirection
-            
-            if moveDir.Magnitude > 0 then
-                local sideVector = cam.CFrame.RightVector * (moveDir:Dot(cam.CFrame.RightVector))
-                local forwardVector = cam.CFrame.LookVector * (moveDir:Dot(cam.CFrame.LookVector))
-                flyBv.Velocity = (sideVector + forwardVector).Unit * FlySpeed
-            else
-                flyBv.Velocity = Vector3.new(0, 0, 0)
-            end
+            hum:ChangeState(Enum.HumanoidStateType.Flying)
+            local controlModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule")):GetControls()
+            local moveVec = controlModule:GetMoveVector()
+            if moveVec.Magnitude > 0 then flyBv.Velocity = (cam.CFrame.RightVector * moveVec.X + cam.CFrame.LookVector * -moveVec.Z) * 60
+            else flyBv.Velocity = Vector3.new(0, 0, 0) end
         end)
     else
         if flyBv then pcall(function() flyBv:Destroy() flyBv = nil end) end
         if flyBg then pcall(function() flyBg:Destroy() flyBg = nil end) end
-        pcall(function() if LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.PlatformStand = false end end)
     end
 end)
 
--- ESP Player
-local function ManageESP()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local hl = p.Character:FindFirstChild("NAW_Highlight")
-            if ESP_Enabled then
-                if not hl then
-                    hl = Instance.new("Highlight")
-                    hl.Name = "NAW_Highlight"
-                    hl.FillColor = Color3.fromRGB(255, 43, 43)
-                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    hl.FillTransparency = 0.4
-                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    hl.Parent = p.Character
+-- ESP Định vị mục tiêu
+task.spawn(function()
+    while task.wait(0.5) do
+        if ESP_Enabled then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local hl = ESP_Folder:FindFirstChild(p.Name)
+                    if not hl then
+                        hl = Instance.new("Highlight", ESP_Folder)
+                        hl.Name = p.Name
+                        hl.FillColor, hl.OutlineColor = Color3.fromRGB(255, 50, 50), Color3.fromRGB(255, 255, 255)
+                        hl.FillTransparency, hl.OutlineTransparency = 0.5, 0
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    end
+                    hl.Adornee = p.Character
                 end
-            else
-                if hl then hl:Destroy() end
+            end
+        else ESP_Folder:ClearAllChildren() end
+    end
+end)
+
+-- LOGIC HỆ THỐNG TRADE (KHÓA ĐÓNG BĂNG & ÉP ĐỒNG Ý)
+-- Quét các sự kiện RemoteEvent/RemoteFunction trao đổi phổ biến trong cấu trúc game Roblox
+local function GetTradeRemote()
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+            local name = string.lower(v.Name)
+            if string.find(name, "trade") or string.find(name, "deal") or string.find(name, "accept") then
+                return v
             end
         end
     end
+    return nil
 end
-task.spawn(function() while task.wait(1) do ManageESP() end end)
 
--- Teleport Hàm
-local function TeleportToPlayer(targetName)
-    if targetName == "" then return end
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and (string.find(string.lower(p.Name), string.lower(targetName)) or string.find(string.lower(p.DisplayName), string.lower(targetName))) then
-            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
-                break
-            end
+task.spawn(function()
+    while task.wait(0.1) do
+        if FreezeTrade_Enabled or ForceAccept_Enabled then
+            pcall(function()
+                local remote = GetTradeRemote()
+                if remote then
+                    if FreezeTrade_Enabled then
+                        -- Gửi gói tin giả lập liên tục chặn cập nhật trạng thái hủy bỏ hoặc thay đổi item
+                        remote:FireServer("UpdateStatus", "Lock")
+                        remote:FireServer("SetReady", true)
+                    end
+                    if ForceAccept_Enabled then
+                        -- Kích hoạt ép thực thi lệnh xác nhận giao dịch từ client
+                        remote:FireServer("Accept")
+                        remote:FireServer("ConfirmTrade")
+                        remote:FireServer("Complete")
+                    end
+                end
+            end)
         end
     end
+end)
+
+-- Tiện ích hệ thống máy chủ
+local function OptimizeGame()
+    pcall(function()
+        Lighting.FogEnd = 9e9
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+                v.Material, v.Reflectance = Enum.Material.SmoothPlastic, 0
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                v.Enabled = false
+            end
+        end
+    end)
 end
 
--- 3. GIAO DIỆN CHÍNH (SIDEBAR TRÁI QUEN THUỘC)
+-- 4. THIẾT KẾ ĐỒ HỌA CHÍNH (V3 GLOSS STYLING)
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "NawHubV1Classic"
+ScreenGui.Name = "NawHubMainUI"
 ScreenGui.ResetOnSpawn = false
 
+-- NÚT FLOATING BUTTON KHỞI ĐỘNG
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 55, 0, 55)
-ToggleBtn.Position = UDim2.new(0, 20, 0.5, -27)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
-ToggleBtn.Text = "NAW"
-ToggleBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
-ToggleBtn.Font = Enum.Font.GothamBlack
-ToggleBtn.TextSize = 13
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-local BtnStroke = Instance.new("UIStroke", ToggleBtn)
-BtnStroke.Color = Color3.fromRGB(0, 170, 255)
-BtnStroke.Thickness = 2
+ToggleBtn.Size, ToggleBtn.Position = UDim2.new(0, 46, 0, 46), UDim2.new(0, 20, 0.5, -23)
+ToggleBtn.BackgroundColor3, ToggleBtn.Text = Color3.fromRGB(15, 15, 20), "N"
+ToggleBtn.TextColor3, ToggleBtn.Font, ToggleBtn.TextSize = Color3.fromRGB(0, 162, 255), Enum.Font.GothamBlack, 22
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
+local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+ToggleStroke.Thickness, ToggleStroke.Color = 2, Color3.fromRGB(0, 162, 255)
 
+-- BẢNG ĐIỀU KHIỂN TRUNG TÂM
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 560, 0, 350) -- Tăng nhẹ chiều cao để chứa thêm nút
-MainFrame.Position = UDim2.new(0.5, -280, 0.5, -175)
-MainFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = true
+MainFrame.Size, MainFrame.Position = UDim2.new(0, 580, 0, 360), UDim2.new(0.5, -290, 0.5, -180)
+MainFrame.BackgroundColor3, MainFrame.Visible = Color3.fromRGB(15, 15, 20), true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(35, 35, 45)
+MainStroke.Thickness, MainStroke.Color = 1, Color3.fromRGB(40, 40, 50)
 
--- Xử lý kéo thả mượt
+-- Logic kéo thả mượt mà không xung đột
 local dragging, dragInput, dragStart, startPos
 local function addDrag(frame, target)
     frame.InputBegan:Connect(function(input)
@@ -316,228 +311,167 @@ local function addDrag(frame, target)
 end
 addDrag(ToggleBtn, ToggleBtn)
 addDrag(MainFrame, MainFrame)
-
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
-        if dragInput.Target == ToggleBtn then 
-            ToggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        else 
-            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) 
-        end
+        if dragInput.Target == ToggleBtn then ToggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        else MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end
     end
 end)
 ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
--- Sidebar
+-- THANH SIDEBAR TRÁI SANG TRỌNG
 local Sidebar = Instance.new("Frame", MainFrame)
-Sidebar.Size = UDim2.new(0, 150, 1, -25)
-Sidebar.BackgroundColor3 = Color3.fromRGB(10, 10, 13)
-Sidebar.BorderSizePixel = 0
+Sidebar.Size, Sidebar.BackgroundColor3, Sidebar.BorderSizePixel = UDim2.new(0, 160, 1, 0), Color3.fromRGB(10, 10, 14), 0
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
 
 local LogoLabel = Instance.new("TextLabel", Sidebar)
-LogoLabel.Size = UDim2.new(1, 0, 0, 45)
-LogoLabel.BackgroundTransparency = 1
-LogoLabel.Text = "  🔵 NAW HUB"
-LogoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-LogoLabel.Font = Enum.Font.GothamBold
-LogoLabel.TextSize = 15
-LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogoLabel.Size, LogoLabel.Position, LogoLabel.BackgroundTransparency = UDim2.new(1, -30, 0, 50), UDim2.new(0, 30, 0, 0), 1
+LogoLabel.Text, LogoLabel.TextColor3 = " Naw Hub", Color3.fromRGB(0, 162, 255)
+LogoLabel.Font, LogoLabel.TextSize, LogoLabel.TextXAlignment = Enum.Font.GothamBold, 16, Enum.TextXAlignment.Left
 
-local Footer = Instance.new("Frame", MainFrame)
-Footer.Size = UDim2.new(1, 0, 0, 25)
-Footer.Position = UDim2.new(0, 0, 1, -25)
-Footer.BackgroundColor3 = Color3.fromRGB(10, 10, 13)
-Footer.BorderSizePixel = 0
-
-local FooterText = Instance.new("TextLabel", Footer)
-FooterText.Size = UDim2.new(1, -20, 1, 0)
-FooterText.Position = UDim2.new(0, 12, 0, 0)
-FooterText.BackgroundTransparency = 1
-FooterText.Text = "Edition v1.2 | By namnguyen57"
-FooterText.TextColor3 = Color3.fromRGB(110, 110, 120)
-FooterText.Font = Enum.Font.Gotham
-FooterText.TextSize = 11
-FooterText.TextXAlignment = Enum.TextXAlignment.Left
+local IconLabel = Instance.new("TextLabel", Sidebar)
+IconLabel.Size, IconLabel.Position, IconLabel.BackgroundTransparency, IconLabel.Text = UDim2.new(0, 30, 0, 50), UDim2.new(0, 10, 0, 0), 1, "⚡"
+IconLabel.TextColor3, IconLabel.Font, IconLabel.TextSize = Color3.fromRGB(255, 255, 255), Enum.Font.Gotham, 16
 
 local Container = Instance.new("Frame", MainFrame)
-Container.Size = UDim2.new(1, -165, 1, -40)
-Container.Position = UDim2.new(0, 155, 0, 10)
-Container.BackgroundTransparency = 1
+Container.Size, Container.Position, Container.BackgroundTransparency = UDim2.new(1, -175, 1, -20), UDim2.new(0, 170, 0, 10), 1
 
--- Quản lý Tab
+-- BỘ ĐIỀU HƯỚNG TAB
 local Tabs, TabButtons, TabCount = {}, {}, 0
 
-local function CreateTab(name)
+local function CreateTab(vnName, enName, icon)
     TabCount = TabCount + 1
     local TabPage = Instance.new("ScrollingFrame", Container)
-    TabPage.Size = UDim2.new(1, 0, 1, 0)
-    TabPage.BackgroundTransparency = 1
-    TabPage.CanvasSize = UDim2.new(0, 0, 0, 550)
-    TabPage.ScrollBarThickness = 2
-    TabPage.Visible = (TabCount == 1)
-    TabPage.BorderSizePixel = 0
+    TabPage.Size, TabPage.BackgroundTransparency, TabPage.CanvasSize = UDim2.new(1, 0, 1, 0), 1, UDim2.new(0, 0, 0, 550)
+    TabPage.ScrollBarThickness, TabPage.Visible, TabPage.BorderSizePixel = 2, (TabCount == 1), 0
+    TabPage.ScrollBarImageColor3 = Color3.fromRGB(50, 50, 60)
     
     local ListLayout = Instance.new("UIListLayout", TabPage)
-    ListLayout.Padding = UDim.new(0, 8)
-    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    Tabs[name] = TabPage
+    ListLayout.Padding, ListLayout.SortOrder = UDim.new(0, 10), Enum.SortOrder.LayoutOrder
+    Tabs[vnName] = TabPage
     
     local TabBtn = Instance.new("TextButton", Sidebar)
-    TabBtn.Size = UDim2.new(0.9, 0, 0, 34)
-    TabBtn.Position = UDim2.new(0.05, 0, 0, 45 + (TabCount - 1) * 38)
-    TabBtn.BackgroundColor3 = (TabCount == 1) and Color3.fromRGB(20, 20, 26) or Color3.fromRGB(10, 10, 13)
-    TabBtn.Text = "   " .. name
-    TabBtn.TextColor3 = (TabCount == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 150)
-    TabBtn.Font = Enum.Font.GothamBold
-    TabBtn.TextSize = 13
-    TabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    TabBtn.BorderSizePixel = 0
+    TabBtn.Size, TabBtn.Position = UDim2.new(0.9, 0, 0, 38), UDim2.new(0.05, 0, 0, 55 + (TabCount - 1) * 45)
+    TabBtn.BackgroundColor3 = (TabCount == 1) and Color3.fromRGB(0, 162, 255) or Color3.fromRGB(15, 15, 20)
+    TabBtn.Font, TabBtn.TextSize, TabBtn.TextXAlignment = Enum.Font.GothamSemibold, 13, Enum.TextXAlignment.Left
     Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
     
+    RegisterLocale(TabBtn, "Text", "  " .. icon .. "  " .. vnName, "  " .. icon .. "  " .. enName)
+    TabBtn.TextColor3 = (TabCount == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 160)
+    
     TabBtn.MouseButton1Click:Connect(function()
-        for tName, page in pairs(Tabs) do page.Visible = (tName == name) end
+        for tName, page in pairs(Tabs) do page.Visible = (tName == vnName) end
         for bName, btn in pairs(TabButtons) do
-            local isCurrent = (bName == name)
-            btn.BackgroundColor3 = isCurrent and Color3.fromRGB(20, 20, 26) or Color3.fromRGB(10, 10, 13)
-            btn.TextColor3 = isCurrent and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 150)
+            local active = (bName == vnName)
+            TweenService:Create(btn, TweenInfo.new(0.25), {
+                BackgroundColor3 = active and Color3.fromRGB(0, 162, 255) or Color3.fromRGB(15, 15, 20),
+                TextColor3 = active and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 160)
+            }):Play()
         end
     end)
-    TabButtons[name] = TabBtn
+    TabButtons[vnName] = TabBtn
     return TabPage
 end
 
-local function CreateSection(parent, title, sizeY)
+local function CreateSection(parent, vnTitle, enTitle, sizeY)
     local SectionFrame = Instance.new("Frame", parent)
-    SectionFrame.Size = UDim2.new(0.96, 0, 0, sizeY)
-    SectionFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-    SectionFrame.BorderSizePixel = 0
+    SectionFrame.Size, SectionFrame.BackgroundColor3 = UDim2.new(0.96, 0, 0, sizeY), Color3.fromRGB(20, 20, 25)
     Instance.new("UICorner", SectionFrame).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", SectionFrame).Color = Color3.fromRGB(35, 35, 45)
     
     local SectionTitle = Instance.new("TextLabel", SectionFrame)
-    SectionTitle.Size = UDim2.new(1, -20, 0, 28)
-    SectionTitle.Position = UDim2.new(0, 10, 0, 2)
-    SectionTitle.BackgroundTransparency = 1
-    SectionTitle.Text = title
-    SectionTitle.TextColor3 = Color3.fromRGB(0, 170, 255)
-    SectionTitle.Font = Enum.Font.GothamBold
-    SectionTitle.TextSize = 13
+    SectionTitle.Size, SectionTitle.Position, SectionTitle.BackgroundTransparency = UDim2.new(1, -20, 0, 30), UDim2.new(0, 12, 0, 5), 1
+    SectionTitle.TextColor3, SectionTitle.Font, SectionTitle.TextSize = Color3.fromRGB(0, 162, 255), Enum.Font.GothamBold, 13
     SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterLocale(SectionTitle, "Text", vnTitle, enTitle)
     return SectionFrame
 end
 
--- Ô vuông Checkbox cổ điển
-local function CreateToggle(section, name, yPos, callback)
+-- PHƯƠNG THỨC TOGGLE NÚT GẠT CÔNG TẮC ĐẸP MẮT (STYLE IOS)
+local function CreateToggle(section, vnName, enName, yPos, callback)
     local Frame = Instance.new("Frame", section)
-    Frame.Size = UDim2.new(0.94, 0, 0, 30)
-    Frame.Position = UDim2.new(0.03, 0, 0, yPos)
-    Frame.BackgroundTransparency = 1
+    Frame.Size, Frame.Position, Frame.BackgroundTransparency = UDim2.new(0.94, 0, 0, 34), UDim2.new(0.03, 0, 0, yPos), 1
     
     local Label = Instance.new("TextLabel", Frame)
-    Label.Size = UDim2.new(0.7, 0, 1, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = name
-    Label.TextColor3 = Color3.fromRGB(215, 215, 225)
-    Label.Font = Enum.Font.Gotham
-    Label.TextSize = 13
-    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Size, Label.BackgroundTransparency = UDim2.new(0.7, 0, 1, 0), 1
+    Label.TextColor3, Label.Font, Label.TextSize, Label.TextXAlignment = Color3.fromRGB(220, 220, 230), Enum.Font.Gotham, 12, Enum.TextXAlignment.Left
+    RegisterLocale(Label, "Text", vnName, enName)
 
     local ToggleBg = Instance.new("Frame", Frame)
-    ToggleBg.Size = UDim2.new(0, 18, 0, 18)
-    ToggleBg.Position = UDim2.new(1, -22, 0.5, -9)
-    ToggleBg.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    Instance.new("UICorner", ToggleBg).CornerRadius = UDim.new(0, 4)
+    ToggleBg.Size, ToggleBg.Position, ToggleBg.BackgroundColor3 = UDim2.new(0, 40, 0, 20), UDim2.new(1, -40, 0.5, -10), Color3.fromRGB(35, 35, 45)
+    Instance.new("UICorner", ToggleBg).CornerRadius = UDim.new(1, 0)
     
-    local CheckMark = Instance.new("Frame", ToggleBg)
-    CheckMark.Size = UDim2.new(0, 10, 0, 10)
-    CheckMark.Position = UDim2.new(0.5, -5, 0.5, -5)
-    CheckMark.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-    CheckMark.BackgroundTransparency = 1 
-    Instance.new("UICorner", CheckMark).CornerRadius = UDim.new(0, 2)
+    local Circle = Instance.new("Frame", ToggleBg)
+    Circle.Size, Circle.Position, Circle.BackgroundColor3 = UDim2.new(0, 14, 0, 14), UDim2.new(0, 3, 0.5, -7), Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
     
     local active = false
     local Click = Instance.new("TextButton", ToggleBg)
-    Click.Size = UDim2.new(1, 0, 1, 0)
-    Click.BackgroundTransparency = 1
-    Click.Text = ""
+    Click.Size, Click.BackgroundTransparency, Click.Text = UDim2.new(1, 0, 1, 0), 1, ""
 
     Click.MouseButton1Click:Connect(function()
         active = not active
         callback(active)
-        TweenService:Create(CheckMark, TweenInfo.new(0.15), {BackgroundTransparency = active and 0 or 1}):Play()
+        TweenService:Create(ToggleBg, TweenInfo.new(0.25), {BackgroundColor3 = active and Color3.fromRGB(0, 162, 255) or Color3.fromRGB(35, 35, 45)}):Play()
+        TweenService:Create(Circle, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = active and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)}):Play()
     end)
 end
 
-local function CreateTextBox(section, placeholder, yPos, callback)
+-- NÚT BẤM VÀ CÁC THÀNH PHẦN KHÁC KIỂU DÁNG CAO CẤP
+local function CreateButton(section, vnName, enName, yPos, callback)
     local Frame = Instance.new("Frame", section)
-    Frame.Size = UDim2.new(0.94, 0, 0, 30)
-    Frame.Position = UDim2.new(0.03, 0, 0, yPos)
-    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
-
-    local Box = Instance.new("TextBox", Frame)
-    Box.Size = UDim2.new(1, -10, 1, 0)
-    Box.Position = UDim2.new(0, 5, 0, 0)
-    Box.BackgroundTransparency = 1
-    Box.PlaceholderText = placeholder
-    Box.Text = ""
-    Box.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Box.Font = Enum.Font.Gotham
-    Box.TextSize = 12
-    Box.TextXAlignment = Enum.TextXAlignment.Left
-    Box.FocusLost:Connect(function() callback(Box.Text) end)
-end
-
-local function CreateButton(section, name, yPos, callback)
-    local Frame = Instance.new("Frame", section)
-    Frame.Size = UDim2.new(0.94, 0, 0, 30)
-    Frame.Position = UDim2.new(0.03, 0, 0, yPos)
-    Frame.BackgroundColor3 = Color3.fromRGB(0, 130, 230)
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
+    Frame.Size, Frame.Position = UDim2.new(0.94, 0, 0, 32), UDim2.new(0.03, 0, 0, yPos)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 5)
+    local Stroke = Instance.new("UIStroke", Frame)
+    Stroke.Color, Stroke.Thickness = Color3.fromRGB(50, 50, 60), 1
 
     local Btn = Instance.new("TextButton", Frame)
-    Btn.Size = UDim2.new(1, 0, 1, 0)
-    Btn.BackgroundTransparency = 1
-    Btn.Text = name
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 12
-    Btn.MouseButton1Click:Connect(callback)
+    Btn.Size, Btn.BackgroundTransparency = UDim2.new(1, 0, 1, 0), 1
+    Btn.TextColor3, Btn.Font, Btn.TextSize = Color3.fromRGB(255, 255, 255), Enum.Font.GothamBold, 12
+    RegisterLocale(Btn, "Text", vnName, enName)
+    
+    Btn.MouseButton1Click:Connect(function()
+        TweenService:Create(Frame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(0, 162, 255)}):Play()
+        callback()
+        task.wait(0.1)
+        TweenService:Create(Frame, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
+    end)
 end
 
 -- ==========================================================
--- PHÂN CHIA MENU & CÁC TÍNH NĂNG MỚI THÊM
+-- SẮP XẾP KHÔNG GIAN CÁC CHỨC NĂNG VÀO MENU CHÍNH
 -- ==========================================================
 
--- TAB MAIN
-local TabMain = CreateTab("Trang Chính")
-local SecMove = CreateSection(TabMain, "Hệ Thống Di Chuyển", 245) -- Mở rộng khung để thêm tính năng
-CreateToggle(SecMove, "Tốc độ chạy nhảy (Speed Hack)", 35, function(v) Speed_Enabled = v end)
-CreateToggle(SecMove, "Đi xuyên tường (Noclip)", 70, function(v) Noclip_Enabled = v end)
-CreateToggle(SecMove, "Chế độ bay (Fly Mode)", 105, function(v) Fly_Enabled = v end)
-CreateToggle(SecMove, "Nhảy vô hạn (Infinite Jump)", 140, function(v) InfJump_Enabled = v end)
-CreateToggle(SecMove, "Dịch chuyển bằng chuột (Ctrl + Click)", 175, function(v) ClickTP_Enabled = v end)
-CreateToggle(SecMove, "Tàng hình nhân vật (Invisibility)", 210, function(v) ToggleInvisibility(v) end)
+-- TAB 1: DI CHUYỂN
+local TabMain = CreateTab("Di Chuyển", "Movement", "🏠")
+local SecMove = CreateSection(TabMain, "Hệ Thống Di Chuyển", "Movement Settings", 250)
+CreateToggle(SecMove, "Tốc độ chạy nhảy (Speed Hack)", "WalkSpeed Hack", 35, function(v) Speed_Enabled = v end)
+CreateToggle(SecMove, "Đi xuyên tường (Noclip)", "Noclip Bypass", 70, function(v) Noclip_Enabled = v end)
+CreateToggle(SecMove, "Chế độ bay (Fly Mode)", "Fly Mode Control", 105, function(v) Fly_Enabled = v end)
+CreateToggle(SecMove, "Nhảy vô hạn (Infinite Jump)", "Infinite Jump Request", 140, function(v) InfJump_Enabled = v end)
+CreateToggle(SecMove, "Dịch chuyển bằng chuột (Ctrl + Click)", "Click Teleport (Ctrl + Click)", 175, function(v) ClickTP_Enabled = v end)
+CreateToggle(SecMove, "Tàng hình nhân vật (Invisibility)", "Invisibility Exploit", 210, function(v) ToggleInvisibility(v) end)
 
--- TAB VISUALS
-local TabVis = CreateTab("Hiển Thị")
-local SecESP = CreateSection(TabVis, "Nhìn Xuyên Tường & Bản Đồ", 115)
-CreateToggle(SecESP, "Bật định vị người chơi (ESP Box)", 35, function(v) ESP_Enabled = v end)
-CreateToggle(SecESP, "Bật sáng bản đồ (Fullbright)", 75, function(v) ToggleFullbright(v) end)
+-- TAB 2: HIỂN THỊ
+local TabVis = CreateTab("Hiển Thị", "Visuals", "👁️")
+local SecESP = CreateSection(TabVis, "Định Vị & Bản Đồ", "ESP & Map Rendering", 115)
+CreateToggle(SecESP, "Bật định vị người chơi (Player ESP)", "Player Highlight ESP", 35, function(v) ESP_Enabled = v end)
+CreateToggle(SecESP, "Bật sáng toàn bộ bản đồ (Fullbright)", "Fullbright Lighting", 75, function(v) Fullbright_Enabled = v end)
 
--- TAB TELEPORT
-local TabTP = CreateTab("Dịch Chuyển")
-local SecTP = CreateSection(TabTP, "Teleport Người Chơi", 115)
-CreateTextBox(SecTP, "Nhập tên người chơi cần tìm...", 35, function(txt) TeleportTarget = txt end)
-CreateButton(SecTP, "Dịch chuyển tức thời", 75, function() TeleportToPlayer(TeleportTarget) end)
+-- TAB 3: GIAO DỊCH (TRADE)
+local TabTrade = CreateTab("Giao Dịch", "Trading", "🔄")
+local SecTrade = CreateSection(TabTrade, "Tính Năng Giao Dịch", "Trade Exploits", 115)
+CreateToggle(SecTrade, "Đóng băng tiến trình Trade", "Freeze Current Trade", 35, function(v) FreezeTrade_Enabled = v end)
+CreateToggle(SecTrade, "Ép đối phương chấp nhận Trade", "Force Accept Opponent Trade", 75, function(v) ForceAccept_Enabled = v end)
 
-local SecServ = CreateSection(TabTP, "Quản Lý Máy Châu", 115)
-CreateButton(SecServ, "Vào lại Server này (Rejoin)", 35, function() RejoinServer() end)
-CreateButton(SecServ, "Chuyển Server ngẫu nhiên (Hop)", 75, function() ServerHop() end)
+-- TAB 4: HỆ THỐNG CÀI ĐẶT
+local TabMisc = CreateTab("Hệ Thống", "System", "⚙️")
+local SecPerf = CreateSection(TabMisc, "Tiện Ích Hiệu Năng", "Performance & Utilities", 115)
+CreateToggle(SecPerf, "Chống treo máy (Auto Anti-AFK)", "Anti-AFK Verification", 35, function(v) AntiAFK_Enabled = v end)
+CreateButton(SecPerf, "Tối ưu hóa & Tăng tốc trò chơi", "Optimize & Boost FPS", 75, function() OptimizeGame() end)
 
--- TAB MISC
-local TabMisc = CreateTab("Hệ Thống")
-local SecPerf = CreateSection(TabMisc, "Tối Ưu & Tiện Ích", 115)
-CreateButton(SecPerf, "Tăng Tốc Trò Chơi (Boost FPS)", 35, function() OptimizeGame() end)
-CreateToggle(SecPerf, "Chống treo máy (Auto Anti-AFK)", 75, function(v) AntiAFK_Enabled = v end)
+local SecLang = CreateSection(TabMisc, "Cài Đặt Ngôn Ngữ", "Language Settings", 115)
+CreateButton(SecLang, "Chuyển sang Tiếng Việt", "Switch to Vietnamese", 35, function() ChangeLanguage("VN") end)
+CreateButton(SecLang, "Chuyển sang Tiếng Anh", "Switch to English", 75, function() ChangeLanguage("EN") end)
