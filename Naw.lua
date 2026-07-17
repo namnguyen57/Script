@@ -1,6 +1,6 @@
 -- ==========================================================
 -- SCRIPT: NAW HUB V1
--- TÁC GIẢ: namnguyen57 |
+-- TÁC GIẢ: namnguyen57 | 
 -- ==========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -32,7 +32,42 @@ local function ChangeLanguage(lang)
     end
 end
 
--- 2. NOTIFICATION INTRO NHỎ GỌN
+-- 2. HỆ THỐNG KÉO THẢ MENU (DRAGGABLE UI LOGIC)
+local function SetupDraggable(guiObject)
+    local dragging, dragInput, dragStart, startPos
+    
+    guiObject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = guiObject.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    guiObject.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            guiObject.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- 3. NOTIFICATION INTRO
 local SplashGui = Instance.new("ScreenGui", CoreGui)
 SplashGui.Name = "NawNotification"
 
@@ -54,7 +89,7 @@ TweenService:Create(ToastFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.
 task.wait(0.3)
 SplashGui:Destroy()
 
--- 3. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG
+-- 4. BIẾN TRẠNG THÁI & LOGIC TÍNH NĂNG CHUNG
 local AntiAFK_Enabled = false
 local Speed_Enabled = false
 local Noclip_Enabled = false
@@ -64,7 +99,43 @@ local Invis_Enabled = false
 local InfJump_Enabled = false
 local ClickTP_Enabled = false
 local Fullbright_Enabled = false
-local GodMode_Enabled = false
+local function ExpandHitboxes(sizeValue)
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                -- Thiết lập kích thước
+                root.Size = Vector3.new(sizeValue, sizeValue, sizeValue)
+                -- Điều chỉnh hiển thị để xác nhận trạng thái
+                root.Transparency = 0.8
+                root.BrickColor = BrickColor.new("Bright red")
+                root.CanCollide = false
+            end
+        end
+    end
+end
+
+-- Sử dụng: ExpandHitboxes(10)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local attackRemote = ReplicatedStorage:FindFirstChild("AttackEvent") -- Cần thay thế bằng tên Remote thực tế
+
+local fastAttackEnabled = false
+
+local function StartFastAttack()
+    fastAttackEnabled = true
+    task.spawn(function()
+        while fastAttackEnabled do
+            if attackRemote then
+                attackRemote:FireServer() -- Gửi yêu cầu liên tục
+            end
+            task.wait(0.01) -- Độ trễ tối thiểu để tránh Crash do spam quá tải
+        end
+    end)
+end
+
+local function StopFastAttack()
+    fastAttackEnabled = false
+end
 
 local OriginalTransparencies = {}
 local ESP_Folder = Instance.new("Folder", CoreGui)
@@ -96,7 +167,6 @@ local function ToggleInvisibility(state)
     end
 end
 
--- Vòng lặp Tàng hình (giữ trạng thái khi respawn/cập nhật)
 task.spawn(function()
     while task.wait(0.3) do
         if Invis_Enabled and LocalPlayer.Character then
@@ -113,16 +183,6 @@ task.spawn(function()
     end
 end)
 
--- Bất tử (God Mode - Client Side)
-RunService.Stepped:Connect(function()
-    if GodMode_Enabled and LocalPlayer.Character then
-        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.Health = humanoid.MaxHealth
-        end
-    end
-end)
-
 -- Nhảy vô hạn
 UserInputService.JumpRequest:Connect(function()
     if InfJump_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
@@ -130,11 +190,11 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Click dịch chuyển (Fix lỗi click vào khoảng không)
+-- Click dịch chuyển 
 Mouse.Button1Down:Connect(function()
     if ClickTP_Enabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            if Mouse.Target then -- Đảm bảo chuột đang trỏ vào một vật thể thực
+            if Mouse.Target then
                 LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 3, 0))
             end
         end
@@ -221,7 +281,7 @@ task.spawn(function()
     end
 end)
 
--- Tiện ích tối ưu
+-- Tiện ích tối ưu hóa đồ họa
 local function OptimizeGame()
     pcall(function()
         Lighting.FogEnd = 9e9
@@ -236,11 +296,12 @@ local function OptimizeGame()
     end)
 end
 
--- 4. THIẾT KẾ ĐỒ HỌA CHÍNH
+-- 5. THIẾT KẾ ĐỒ HỌA CHÍNH (V3 GLOSS INTERFACE)
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "NawHubMainUI"
 ScreenGui.ResetOnSpawn = false
 
+-- NÚT FLOATING BUTTON KHỞI ĐỘNG (CÓ HỖ TRỢ KÉO THẢ)
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
 ToggleBtn.Size, ToggleBtn.Position = UDim2.new(0, 46, 0, 46), UDim2.new(0, 20, 0.5, -23)
 ToggleBtn.BackgroundColor3, ToggleBtn.Text = Color3.fromRGB(15, 15, 20), "N"
@@ -249,6 +310,7 @@ Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
 local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
 ToggleStroke.Thickness, ToggleStroke.Color = 2, Color3.fromRGB(0, 162, 255)
 
+-- BẢNG ĐIỀU KHIỂN TRUNG TÂM (CÓ HỖ TRỢ KÉO THẢ)
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size, MainFrame.Position = UDim2.new(0, 580, 0, 360), UDim2.new(0.5, -290, 0.5, -180)
 MainFrame.BackgroundColor3, MainFrame.Visible = Color3.fromRGB(15, 15, 20), true
@@ -256,29 +318,13 @@ Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Thickness, MainStroke.Color = 1, Color3.fromRGB(40, 40, 50)
 
-local dragging, dragInput, dragStart, startPos
-local function addDrag(frame, target)
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; dragStart = input.Position; startPos = target.Position
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-        end
-    end)
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-    end)
-end
-addDrag(ToggleBtn, ToggleBtn)
-addDrag(MainFrame, MainFrame)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        if dragInput.Target == ToggleBtn then ToggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        else MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end
-    end
-end)
+-- Kích hoạt tính năng di chuyển cho cả Nút mở và Khung chính
+SetupDraggable(ToggleBtn)
+SetupDraggable(MainFrame)
+
 ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
+-- THANH SIDEBAR TRÁI
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Size, Sidebar.BackgroundColor3, Sidebar.BorderSizePixel = UDim2.new(0, 160, 1, 0), Color3.fromRGB(10, 10, 14), 0
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
@@ -295,6 +341,7 @@ IconLabel.TextColor3, IconLabel.Font, IconLabel.TextSize = Color3.fromRGB(255, 2
 local Container = Instance.new("Frame", MainFrame)
 Container.Size, Container.Position, Container.BackgroundTransparency = UDim2.new(1, -175, 1, -20), UDim2.new(0, 170, 0, 10), 1
 
+-- BỘ ĐIỀU HƯỚNG TAB UI
 local Tabs, TabButtons, TabCount = {}, {}, 0
 
 local function CreateTab(vnName, enName, icon)
@@ -396,7 +443,7 @@ local function CreateButton(section, vnName, enName, yPos, callback)
 end
 
 -- ==========================================================
--- SẮP XẾP LẠI TÍNH NĂNG VÀO MENU CHÍNH
+-- ĐĂNG KÝ CÁC TAB CHỨC NĂNG VÀO HỆ THỐNG GIAO DIỆN
 -- ==========================================================
 
 -- TAB 1: DI CHUYỂN
@@ -409,18 +456,13 @@ CreateToggle(SecMove, "Nhảy vô hạn (Infinite Jump)", "Infinite Jump Request
 CreateToggle(SecMove, "Dịch chuyển bằng chuột (Ctrl + Click)", "Click Teleport (Ctrl + Click)", 175, function(v) ClickTP_Enabled = v end)
 CreateToggle(SecMove, "Tàng hình nhân vật (Invisibility)", "Invisibility Exploit", 210, function(v) ToggleInvisibility(v) end)
 
--- TAB 2: CHIẾN ĐẤU & BẢO VỆ (Thay thế Trade)
-local TabCombat = CreateTab("Chiến Đấu", "Combat", "⚔️")
-local SecCombat = CreateSection(TabCombat, "Phòng Thủ & Sinh Tồn", "Defense & Survival", 80)
-CreateToggle(SecCombat, "Bất tử (God Mode - Client Side)", "God Mode (Client Sided)", 35, function(v) GodMode_Enabled = v end)
-
--- TAB 3: HIỂN THỊ
+-- TAB 2: HIỂN THỊ
 local TabVis = CreateTab("Hiển Thị", "Visuals", "👁️")
 local SecESP = CreateSection(TabVis, "Định Vị & Bản Đồ", "ESP & Map Rendering", 115)
 CreateToggle(SecESP, "Bật định vị người chơi (Player ESP)", "Player Highlight ESP", 35, function(v) ESP_Enabled = v end)
 CreateToggle(SecESP, "Bật sáng toàn bộ bản đồ (Fullbright)", "Fullbright Lighting", 75, function(v) Fullbright_Enabled = v end)
 
--- TAB 4: HỆ THỐNG CÀI ĐẶT
+-- TAB 3: HỆ THỐNG CÀI ĐẶT
 local TabMisc = CreateTab("Hệ Thống", "System", "⚙️")
 local SecPerf = CreateSection(TabMisc, "Tiện Ích Hiệu Năng", "Performance & Utilities", 115)
 CreateToggle(SecPerf, "Chống treo máy (Auto Anti-AFK)", "Anti-AFK Verification", 35, function(v) AntiAFK_Enabled = v end)
